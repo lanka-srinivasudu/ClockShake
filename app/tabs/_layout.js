@@ -30,7 +30,19 @@ const Layout = () => {
       }}
     >
 
-      <Tab.Screen/>
+      <Tab.Screen
+      name="Home"
+      options={{
+        tabBarIcon: ({ focused }) => (
+          <Foundation
+            name="home"
+            size={24}
+            color={focused ? "white" : "teal"}
+          />
+        ),
+        headerShown:false,
+      }}/>
+
     </Tabs>
   );
 };
