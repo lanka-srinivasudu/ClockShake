@@ -1,26 +1,53 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Image, Pressable } from "react-native";
+import { View, Text, StyleSheet, Image, Pressable, Button } from "react-native";
 import { Accelerometer } from "expo-sensors";
 import ProgressBar from "react-native-progress/Bar";
 import * as Haptics from "expo-haptics";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useNavigation } from "@react-navigation/native";
+
 
 const ShakeAlarmApp = () => {
   const [progress, setProgress] = useState(0);
   const [isShaken, setIsShaken] = useState(false);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isTerminated, setIsTerminated] = useState(false);
-  const [isFullyCompleted, setIsFullyCompleted] = useState(false); 
+  const [isFullyCompleted, setIsFullyCompleted] = useState(false);
+  const player = useAudioPlayer(require("./assets/alarm.mp3"));
+  const { isLoaded } = useAudioPlayerStatus(player);
+  const navigation = useNavigation();
+
+  useEffect(()=>{
+   const timer = setTimeout(() => {
+    setIsButtonEnabled(true)
+   }, 30000);
+   return ()=>clearTimeout(timer);
+  },[]);
+
+
+  async function loadAndPlaySound(){
+    const { sound } = await Audio.Sound.createAsync(
+      require('./assets/alarm.mp3'),
+      {
+        shouldPlay: true, isLooping:true
+      }
+    );
+    setSound(sound);
+    await sound.playAsync();
+  }
+
+  
+  useEffect(()=>{
+    loadAndPlaySound();
+    return ()=>{
+      if(sound){
+        sound.unloadAsync();
+      }
+    };
+  },[]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsButtonEnabled(true);
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (isTerminated || isFullyCompleted) return; 
+    if (isTerminated || isFullyCompleted) return;
 
     const subscription = Accelerometer.addListener((accelerometerData) => {
       const { x, y, z } = accelerometerData;
@@ -36,10 +63,15 @@ const ShakeAlarmApp = () => {
     };
   }, [isTerminated, isFullyCompleted]);
 
+
+
   useEffect(() => {
     if (progress === 1) {
       console.log("Process completed - Bar is full");
-      setIsFullyCompleted(true); // Mark as fully completed
+      setIsFullyCompleted(true);
+      if (sound) {
+        sound.stopAsync();
+      }
     }
   }, [progress]);
 
@@ -56,6 +88,9 @@ const ShakeAlarmApp = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     console.log("Process Terminated");
     setIsTerminated(true);
+    if (sound) {
+      sound.stopAsync();
+    }
   };
 
   return (
@@ -70,11 +105,12 @@ const ShakeAlarmApp = () => {
         <View style={styles.barprogress}>
           <ProgressBar
             progress={progress}
-            width={300}
+            width={335}
             height={10}
             borderRadius={5}
             unfilledColor={"#D3D3D3"}
             borderWidth={0}
+            color={"#E19600"} 
           />
         </View>
       </View>
@@ -86,11 +122,20 @@ const ShakeAlarmApp = () => {
         />
       </View>
 
+      <View style={{ marginTop: 20 }}>
+        <Button title="Set Alarm" onPress={() => navigation.navigate("SetAlarm")} />
+      </View>
+
+
       <View>
         {isFullyCompleted ? (
-          <Text style={styles.alarmText}>The bar is full! The alarm will off now!</Text>
+          <Text style={styles.alarmText}>
+            The bar is full! The alarm will off now!
+          </Text>
         ) : isTerminated ? (
-          <Text style={styles.alarmText}>The alarm will off now!</Text>
+          <Text style={styles.alarmText}>
+            The alarm will off now and Terminated!
+          </Text>
         ) : (
           <Text style={styles.infoText}>
             Shake the phone to fill the progress bar.
@@ -103,30 +148,30 @@ const ShakeAlarmApp = () => {
       >
         <Pressable onPress={Terminate} disabled={!isButtonEnabled}>
           <Text style={{ color: "#fff", fontWeight: "bold" }}>
-            {isButtonEnabled ? "Terminate task" : "Wait 5s..."}
+            {isButtonEnabled ? "Terminate task" : "Wait 30s..."}
           </Text>
         </Pressable>
       </View>
     </View>
   );
-};
+};2
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "flex-start",
     alignItems: "center",
-    backgroundColor: "#ADD8E6",
+    backgroundColor: "#FFFFFF",
     width: 360,
   },
   header: {
     fontSize: 30,
     fontWeight: "bold",
-    color: "#fff",
+    color: "#000000",
   },
   subHeader: {
     fontSize: 20,
-    color: "#fff",
+    color: "#444444",
     marginBottom: 20,
   },
   image: {
@@ -136,25 +181,27 @@ const styles = StyleSheet.create({
   },
   alarmText: {
     fontSize: 20,
-    color: "#ff0000",
+    color: "#444444",
     marginTop: 20,
   },
   infoText: {
     fontSize: 18,
-    color: "#fff",
+    color: "#444444",
     marginTop: 20,
   },
   headermaintext: {
     marginTop: 24,
-    width: 355,
+    width: 360,
     padding: 10,
+    paddingLeft: 15,
+    paddingRight: 15,
     gap: 5,
     justifyContent: "center",
     alignItems: "flex-start",
   },
   headermain: {
     height: 200,
-    backgroundColor: "teal",
+    backgroundColor: "rgba(225, 150, 0, 0.7)",
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
@@ -164,7 +211,7 @@ const styles = StyleSheet.create({
   },
   terminatebutton: {
     marginTop: 20,
-    backgroundColor: "teal",
+    backgroundColor: "#E19600",
     height: 40,
     width: 110,
     justifyContent: "center",
